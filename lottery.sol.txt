@@ -1,0 +1,46 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.12;
+
+import "@openzeppelin/contracts/utils/Strings.sol";
+
+contract Lottery {
+    address public owner;
+    address payable[] public players;
+
+    event WinnerPicked(uint index, uint prize, address winner);
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    modifier minimum(uint value) {
+        require(msg.value >= value, "Minimum value required is 0.01 ether");
+        _;
+    }
+
+    modifier restricted() {
+        require(msg.sender == owner, "Only the owner can call this function");
+        _;
+    }
+
+    function enter() public payable minimum(0.01 ether) {
+        players.push(payable(msg.sender));
+    }
+
+    function random() private view returns (uint) {
+       return uint256(keccak256(abi.encodePacked(block.prevrandao, block.timestamp, players)));
+    }
+
+    function getPlayers() public view returns (address payable[] memory) {
+        return players;
+    }
+
+    function pickWinner() public restricted {
+        uint index = random() % players.length;
+        uint prize = address(this).balance;
+        address payable winner = players[index];
+        winner.transfer(prize);
+        players = new address payable[](0);
+        emit WinnerPicked(index, prize, winner);
+    }
+}
